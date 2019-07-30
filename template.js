@@ -108,69 +108,89 @@ class Template {
             this._processEventsRule(child);
     }
     
+    _processCondition(ifCondition, child) {
+        var ifConditionParts = ifCondition.split(/\s+/g);
+        var trueResult = false;
+        
+        // Boolean test
+        if (ifConditionParts.length == 1) {
+            trueResult = !!this._getVariableByPath(ifConditionParts[0]);
+        }
+        
+        // Defined tests and equality comparisons
+        else if (ifConditionParts.length == 3) {
+            var operator = ifConditionParts[1];
+            
+            // Defined tests
+            var isNot = operator == 'isnot';
+            if (operator == 'is' || isNot) {
+                var variableValue = this._getVariableByPath(ifConditionParts[0]);
+                var testHandler = this.tests[ifConditionParts[2]];
+                if (typeof testHandler == 'undefined') {
+                    throw new Error('Test ' + ifConditionParts[2] + ' not found');
+                } else {
+                    var testResult = testHandler(variableValue, child);
+                    if (isNot)
+                        trueResult = !testResult;
+                    else
+                        trueResult = testResult;
+                }
+            }
+            
+            // Regular equality comparisons
+            else {
+                var leftHand = this._getVariableByPath(ifConditionParts[0]);
+                var rightHand = this._getVariableByPath(ifConditionParts[2]);
+            
+                switch(operator) {
+                    case '==':
+                        trueResult = leftHand == rightHand;
+                        break;
+                    case '>=':
+                        trueResult = leftHand >= rightHand;
+                        break;
+                    case '<=':
+                        trueResult = leftHand <= rightHand;
+                        break;
+                    case '>':
+                        trueResult = leftHand > rightHand;
+                        break;
+                    case '<':
+                        trueResult = leftHand < rightHand;
+                        break;
+                    case '!=':
+                        trueResult = leftHand != rightHand;
+                        break;
+                    default:
+                        throw new Error('Unknown comparison operator' + operator);
+                        break;
+                }
+            }
+        }
+        
+        return trueResult;
+    }
+    
     _preprocessTemplate(child) {
         // If conditions
         if (child.hasAttribute('if')) {
-            var ifConditionParts = child.getAttribute('if').split(/\s+/g);
-            var trueResult = false;
+            var ifConditions = child.getAttribute('if').split(/\s+&\s+/g);
             
-            // Boolean test
-            if (ifConditionParts.length == 1) {
-                trueResult = !!this._getVariableByPath(ifConditionParts[0]);
-            }
-            
-            // Defined tests and equality comparisons
-            else if (ifConditionParts.length == 3) {
-                var operator = ifConditionParts[1];
-                
-                // Defined tests
-                var isNot = operator == 'isnot';
-                if (operator == 'is' || isNot) {
-                    var variableValue = this._getVariableByPath(ifConditionParts[0]);
-                    var testHandler = this.tests[ifConditionParts[2]];
-                    if (typeof testHandler == 'undefined') {
-                        throw new Error('Test ' + ifConditionParts[2] + ' not found');
-                    } else {
-                        var testResult = testHandler(variableValue, child);
-                        if (isNot)
-                            trueResult = !testResult;
-                        else
-                            trueResult = testResult;
+            // a | b & c | d = (a | c) & (c | d) 
+            var totalTrueResult = true;
+            for(var ifCondition of ifConditions) {
+                var orConditions = ifCondition.split(/\s+\|\s+/g);
+                var anyTrue = false;
+                for(var orCondition of orConditions) {
+                    if (this._processCondition(orCondition, child)) {
+                        anyTrue = true;
+                        break;
                     }
                 }
-                
-                // Regular equality comparisons
-                else {
-                    var leftHand = this._getVariableByPath(ifConditionParts[0]);
-                    var rightHand = this._getVariableByPath(ifConditionParts[2]);
-                
-                    switch(operator) {
-                        case '==':
-                            trueResult = leftHand == rightHand;
-                            break;
-                        case '>=':
-                            trueResult = leftHand >= rightHand;
-                            break;
-                        case '<=':
-                            trueResult = leftHand <= rightHand;
-                            break;
-                        case '>':
-                            trueResult = leftHand > rightHand;
-                            break;
-                        case '<':
-                            trueResult = leftHand < rightHand;
-                            break;
-                        case '!=':
-                            trueResult = leftHand != rightHand;
-                            break;
-                        default:
-                            throw new Error('Unknown comparison operator' + operator);
-                            break;
-                    }
-                }
+                totalTrueResult = totalTrueResult && anyTrue;
             }
             
-            if (!trueResult) {
+            if (!totalTrueResult) {
                 child.remove();
                 return;
             }
@@ -318,6 +338,8 @@ class Template {
             return true;
         if (path == 'false')
             return false;
+        if (path.substring(0, 1) == '@')
+            return path.substring(1);
         
         var pathParts = path.replace(/\[(.+)\]/g, '.$1').split('.');
         var varValue = this.vars;
