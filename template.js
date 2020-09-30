@@ -288,10 +288,8 @@ class Template {
         if (child.hasAttribute('for-each'))
             this._processTemplateForEachRule(child, templateContent);
         else {
-            console.log('U', child, child.parentNode);
             let newElement = templateContent.cloneNode(true);
             this._processTemplateContent(newElement);
-            console.log('W', child, child.parentNode);
             this._insertFragmentAfter(newElement, child);
         }
 
