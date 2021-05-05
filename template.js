@@ -167,6 +167,12 @@ class Template {
                     case 'notcontains':
                         trueResult = leftHand.indexOf(rightHand) == -1;
                         break;
+                    case 'in':	
+                        trueResult = rightHand.indexOf(leftHand) > -1;	
+                        break;	
+                    case 'notin':	
+                        trueResult = rightHand.indexOf(leftHand) == -1;	
+                        break;
                     default:
                         throw new Error('Unknown comparison operator' + operator);
                         break;
