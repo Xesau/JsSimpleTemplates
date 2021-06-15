@@ -182,9 +182,9 @@ class Template {
 
         return trueResult;
     }
-
-    _evaluateConditions(child) {
-        let ifConditions = child.getAttribute('if').split(/\s+&\s+/g);
+    
+    _evaluateConditions(child, elseIf) {
+        let ifConditions = child.getAttribute(elseIf ? 'else-if' : 'if').split(/\s+&\s+/g);
 
         // a | b & c | d = (a | c) & (c | d)
         let totalTrueResult = true;
@@ -231,8 +231,8 @@ class Template {
             if (!totalTrueResult) {
                 let doneElseif = false;
                 if (elseIfs.length) {
-                    for (elseIf of elseIfs) {
-                        if (this._evaluateConditions(elseIf)) {
+                    for (let elseIf of elseIfs) {
+                        if (this._evaluateConditions(elseIf, true)) {
                             child.remove();
                             child = elseIf;
                             doneElseif = true;
